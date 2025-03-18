@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+
+define=0
+optstring=d
+
+DefineConcept() {
+  curl -s http://localhost:11434/api/generate -d '{
+  "model": "gemma3:1b",
+  "prompt": "Define '"$1"'. Keep it short, and only use plain text. No markdown.",
+  "stream": false
+}' | jq -r '.response'
+}
+
+DefineConcepts() {
+
+  concept_entries=$(curl -sX POST http://localhost:11434/api/generate -H 'Content-Type: application/json' -d '{
+  "model": "gemma3:1b",
+  "prompt": "Create a list of no more than 20 concepts with definitions related to '"$1"'. Respond using JSON.",
+  "stream": false,
+  "format": {
+    "type": "object",
+    "properties": {
+      "concepts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "concept": {
+              "type": "string"
+            },
+            "definition": {
+              "type": "string"
+            } you en you en
+          }
+
+        }
+      }
+    },
+    "required": [ "concepts" ]
+  }
+}' | jq -r '.response' | jq -r '[.concepts[]]')
+
+  mapfile -t definitions <"$(echo "$concept_entries" | jq -r '.[].definition')"
+
+  mapfile -t concepts <"$(echo "$concept_entries" | jq -r '.[].concept')"
+
+}
+
+ListConcepts() {
+
+  concepts="$(curl -sX POST http://localhost:11434/api/generate -H 'Content-Type: application/json' -d '{
+  "model": "gemma3:1b",
+  "prompt": "Create a list of no more than 10 concepts related to '"$1"'. Respond using JSON.",
+  "stream": false,
+  "format": {
+    "type": "object",
+    "properties": {
+      "concepts": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        } } },
+    "required": [ "concepts" ]
+  }
+}' | jq -r '.response' | jq -r '.concepts[]')"
+
+  pick="$(echo "${concepts[@]}" | fzf -d'\n')"
+
+  echo 'choose what you want to do.'
+  declare -a menu=('more concepts' 'define' 'exit')
+
+  select opt in "${menu[@]}"; do
+    case $opt in
+    'more concepts') ListConcepts "$pick" ;;
+    'define')
+      DefineConcept "$pick"
+      ;;
+    'exit') exit 0 ;;
+    esac
+  done
+}
+
+if getopts $optstring opt; then
+  case $opt in
+  d) define=1 ;;
+  *) exit 1 ;;
+  esac
+fi
+
+if [ $define -ne 0 ]; then
+  echo 'fetching definitions...'
+  in="${*:2:${#*}}"
+
+  DefineConcepts "$in"
+
+else
+  echo 'concepts...'
+  in="$*"
+
+  ListConcepts "$in"
+
+fi
