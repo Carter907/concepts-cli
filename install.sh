@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-install_dir="$HOME"'/.loca/bin'
+install_dir="$HOME"'/.local/bin'
 mkdir -p "$install_dir"
 curl -s https://raw.githubusercontent.com/Carter907/concepts/main/concepts >>"$install_dir"'/concepts'
 
